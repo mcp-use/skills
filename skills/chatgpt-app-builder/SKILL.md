@@ -1,647 +1,778 @@
 ---
 name: chatgpt-app-builder
-description: Build custom ChatGPT apps and GPTs with actions, function calling, and best practices. Use when creating ChatGPT apps, defining GPT actions, building custom GPTs, integrating APIs with ChatGPT, or when user mentions ChatGPT development, GPT actions, or custom GPTs.
+description: Build ChatGPT apps with interactive widgets using mcp-use and OpenAI Apps SDK. Use when creating ChatGPT apps, building MCP servers with widgets, defining React widgets, working with Apps SDK, or when user mentions ChatGPT widgets, mcp-use widgets, or Apps SDK development.
 ---
 
 # ChatGPT App Builder
 
-Build production-ready ChatGPT apps and custom GPTs with actions, proper schema definitions, and best practices for user experience.
+Build production-ready ChatGPT apps with interactive widgets using the mcp-use framework and OpenAI Apps SDK. This skill provides zero-config widget development with automatic registration and built-in React hooks.
 
 ## Quick Start
 
-**Creating a Custom GPT:**
+**Always bootstrap with the Apps SDK template:**
 
-1. Go to [ChatGPT](https://chat.openai.com)
-2. Navigate to "Explore GPTs" → "Create"
-3. Use the GPT Builder or Configure tab
-4. Define your GPT's behavior and capabilities
-
-**Adding Actions:**
-
-1. In Configure tab, scroll to "Actions"
-2. Click "Create new action"
-3. Import OpenAPI schema or define manually
-4. Test your action
-5. Configure authentication if needed
-
-## GPT Configuration Best Practices
-
-### Name and Description
-
-**Name:**
-- Clear, descriptive, 3-5 words max
-- Reflects primary function
-- Easy to remember
-
-**Description:**
-- Concise explanation of what GPT does
-- Target audience and use cases
-- 1-2 sentences
-
-**Example:**
-```
-Name: API Documentation Helper
-Description: Helps developers create and format API documentation with best practices for REST, GraphQL, and webhook APIs.
+```bash
+npx create-mcp-use-app my-chatgpt-app --template apps-sdk
+cd my-chatgpt-app
+yarn install
+yarn dev
 ```
 
-### Instructions
-
-Write clear, detailed instructions for your GPT's behavior:
-
-```markdown
-# Role
-You are an expert [role description].
-
-# Capabilities
-- Capability 1
-- Capability 2
-- Capability 3
-
-# Constraints
-- Don't do X
-- Always verify Y
-- When Z happens, do this
-
-# Style
-- Be [adjective]
-- Use [tone]
-- Format responses as [format]
-
-# Examples
-[Provide 2-3 concrete examples of good interactions]
-```
-
-**Best Practices:**
-- ✅ Be specific and detailed
-- ✅ Include examples of good responses
-- ✅ Define constraints clearly
-- ✅ Specify output format preferences
-- ✅ Include edge case handling
-- ❌ Don't be vague ("be helpful")
-- ❌ Don't over-constrain creativity
-
-### Conversation Starters
-
-Provide 4 example prompts that showcase your GPT's capabilities:
+This creates a project structure:
 
 ```
-1. "Create an API endpoint for user authentication"
-2. "Review this API response schema for best practices"
-3. "Generate OpenAPI spec for a REST API"
-4. "Help me debug this webhook integration"
+my-chatgpt-app/
+├── resources/              # React widgets (auto-registered!)
+│   ├── display-weather.tsx # Example widget
+│   └── product-card.tsx    # Another widget
+├── public/                 # Static assets
+│   └── images/
+├── index.ts               # MCP server entry
+├── package.json
+├── tsconfig.json
+└── README.md
 ```
 
-**Tips:**
-- Show diverse capabilities
-- Use real-world scenarios
-- Keep them concise and clear
-- Make them copy-paste ready
+## Why mcp-use for ChatGPT Apps?
 
-### Knowledge Files
+Traditional OpenAI Apps SDK requires significant manual setup:
+- Separate project structure (server/ and web/ folders)
+- Manual esbuild/webpack configuration
+- Custom useWidgetState hook implementation
+- Manual React mounting code
+- Manual CSP configuration
+- Manual widget registration
 
-Upload files for your GPT to reference:
+**mcp-use simplifies everything:**
+- ✅ Single command setup
+- ✅ Drop widgets in `resources/` folder - auto-registered
+- ✅ Built-in `useWidget()` hook with state, props, tool calls
+- ✅ Automatic bundling with hot reload
+- ✅ Automatic CSP configuration
+- ✅ Built-in Inspector for testing
 
-**Good use cases:**
-- Product documentation
-- API specifications
-- Style guides
-- Data schemas
-- Example code
-- Reference materials
+## Creating Widgets
 
-**Best practices:**
-- ✅ Use markdown, text, or PDF formats
-- ✅ Keep files under 512MB total
-- ✅ Structure content clearly
-- ✅ Include table of contents for long docs
-- ✅ Use consistent formatting
-- ❌ Don't upload binary formats unnecessarily
-- ❌ Don't include sensitive data
+### Simple Widget (Single File)
 
-## Actions and Function Calling
+Create `resources/weather-display.tsx`:
 
-### OpenAPI Schema Structure
+```tsx
+import { McpUseProvider, useWidget, type WidgetMetadata } from 'mcp-use/react';
+import { z } from 'zod';
 
-Actions require OpenAPI 3.0+ schema:
+// Define widget metadata
+export const widgetMetadata: WidgetMetadata = {
+  description: 'Display current weather for a city',
+  props: z.object({
+    city: z.string().describe('City name'),
+    temperature: z.number().describe('Temperature in Celsius'),
+    conditions: z.string().describe('Weather conditions'),
+    humidity: z.number().describe('Humidity percentage'),
+  }),
+};
 
-```yaml
-openapi: 3.0.0
-info:
-  title: My API
-  version: 1.0.0
-  description: API for my custom GPT
-servers:
-  - url: https://api.example.com
-paths:
-  /search:
-    get:
-      operationId: searchItems
-      summary: Search for items
-      description: Detailed description of what this endpoint does
-      parameters:
-        - name: query
-          in: query
-          required: true
-          description: Search query string
-          schema:
-            type: string
-        - name: limit
-          in: query
-          required: false
-          description: Maximum number of results
-          schema:
-            type: integer
-            default: 10
-      responses:
-        '200':
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  results:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id:
-                          type: string
-                        title:
-                          type: string
-                        description:
-                          type: string
+const WeatherDisplay: React.FC = () => {
+  const { props, isPending } = useWidget();
+  
+  // Always handle loading state first
+  if (isPending) {
+    return (
+      <McpUseProvider autoSize>
+        <div className="animate-pulse p-4">Loading weather...</div>
+      </McpUseProvider>
+    );
+  }
+  
+  return (
+    <McpUseProvider autoSize>
+      <div className="weather-card p-4 rounded-lg shadow">
+        <h2 className="text-2xl font-bold">{props.city}</h2>
+        <div className="temp text-4xl">{props.temperature}°C</div>
+        <p className="conditions">{props.conditions}</p>
+        <p className="humidity">Humidity: {props.humidity}%</p>
+      </div>
+    </McpUseProvider>
+  );
+};
+
+export default WeatherDisplay;
 ```
 
-**Key Elements:**
-- `operationId`: Unique identifier (ChatGPT uses this)
-- `summary`: Brief description shown to users
-- `description`: Detailed explanation for the model
-- `parameters`: Input parameters with types and descriptions
-- `responses`: Expected response structure
+That's it! The widget is automatically:
+- Registered as MCP tool `weather-display`
+- Registered as MCP resource `ui://widget/weather-display.html`
+- Bundled for Apps SDK compatibility
+- Ready to use in ChatGPT
 
-### JSON Schema for Actions
+### Complex Widget (Folder Structure)
 
-When defining actions directly in ChatGPT UI:
+For widgets with multiple components:
 
-```json
-{
-  "openapi": "3.0.0",
-  "info": {
-    "title": "Weather API",
-    "version": "1.0.0"
+```
+resources/
+└── product-search/
+    ├── widget.tsx          # Entry point (required name)
+    ├── components/
+    │   ├── ProductCard.tsx
+    │   └── FilterBar.tsx
+    ├── hooks/
+    │   └── useFilter.ts
+    ├── types.ts
+    └── constants.ts
+```
+
+**Entry point (`widget.tsx`):**
+
+```tsx
+import { McpUseProvider, useWidget, type WidgetMetadata } from 'mcp-use/react';
+import { z } from 'zod';
+import { ProductCard } from './components/ProductCard';
+import { FilterBar } from './components/FilterBar';
+
+export const widgetMetadata: WidgetMetadata = {
+  description: 'Display product search results with filtering',
+  props: z.object({
+    products: z.array(z.object({
+      id: z.string(),
+      name: z.string(),
+      price: z.number(),
+      image: z.string(),
+    })),
+    query: z.string(),
+  }),
+};
+
+const ProductSearch: React.FC = () => {
+  const { props, isPending, state, setState } = useWidget();
+  
+  if (isPending) {
+    return <McpUseProvider autoSize><div>Loading...</div></McpUseProvider>;
+  }
+  
+  return (
+    <McpUseProvider autoSize>
+      <div>
+        <h1>Search: {props.query}</h1>
+        <FilterBar onFilter={(filters) => setState({ filters })} />
+        <div className="grid grid-cols-3 gap-4">
+          {props.products.map(p => (
+            <ProductCard key={p.id} product={p} />
+          ))}
+        </div>
+      </div>
+    </McpUseProvider>
+  );
+};
+
+export default ProductSearch;
+```
+
+## Widget Metadata
+
+Required metadata for automatic registration:
+
+```typescript
+export const widgetMetadata: WidgetMetadata = {
+  // Required: Human-readable description
+  description: 'Display weather information',
+  
+  // Required: Zod schema for widget props
+  props: z.object({
+    city: z.string().describe('City name'),
+    temperature: z.number(),
+  }),
+  
+  // Optional: Disable automatic tool registration
+  exposeAsTool: true, // default
+  
+  // Optional: Apps SDK metadata
+  appsSdkMetadata: {
+    'openai/widgetDescription': 'Interactive weather display',
+    'openai/toolInvocation/invoking': 'Loading weather...',
+    'openai/toolInvocation/invoked': 'Weather loaded',
+    'openai/widgetCSP': {
+      connect_domains: ['https://api.weather.com'],
+      resource_domains: ['https://cdn.weather.com'],
+    },
   },
-  "servers": [
-    {
-      "url": "https://api.weather.com"
-    }
-  ],
-  "paths": {
-    "/current": {
-      "get": {
-        "operationId": "getCurrentWeather",
-        "summary": "Get current weather",
-        "description": "Returns current weather conditions for a location",
-        "parameters": [
-          {
-            "name": "location",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "City name or coordinates"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Weather data",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "temperature": {
-                      "type": "number"
-                    },
-                    "conditions": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+};
+```
+
+**Important:**
+- `description`: Used for tool and resource descriptions
+- `props`: Zod schema defines widget input parameters
+- `exposeAsTool`: Set to `false` if only using widget via custom tools
+- Default Apps SDK metadata is auto-generated if not specified
+
+## useWidget Hook
+
+The `useWidget` hook provides everything you need:
+
+```tsx
+const {
+  // Widget props from tool input
+  props,
+  
+  // Loading state (true = tool still executing)
+  isPending,
+  
+  // Persistent widget state
+  state,
+  setState,
+  
+  // Theme from host (light/dark)
+  theme,
+  
+  // Call other MCP tools
+  callTool,
+  
+  // Display mode control
+  displayMode,
+  requestDisplayMode,
+  
+  // Additional tool output
+  output,
+} = useWidget<MyPropsType, MyOutputType>();
+```
+
+### Props and Loading States
+
+**Critical:** Widgets render BEFORE tool execution completes. Always handle `isPending`:
+
+```tsx
+const { props, isPending } = useWidget<WeatherProps>();
+
+// Pattern 1: Early return
+if (isPending) {
+  return <div>Loading...</div>;
+}
+// Now props are safe to use
+
+// Pattern 2: Conditional rendering
+return (
+  <div>
+    {isPending ? (
+      <LoadingSpinner />
+    ) : (
+      <div>{props.city}</div>
+    )}
+  </div>
+);
+
+// Pattern 3: Optional chaining (partial UI)
+return (
+  <div>
+    <h1>{props.city ?? 'Loading...'}</h1>
+  </div>
+);
+```
+
+### Widget State
+
+Persist data across widget interactions:
+
+```tsx
+const { state, setState } = useWidget();
+
+// Save state (persists in ChatGPT localStorage)
+const addFavorite = async (city: string) => {
+  await setState({
+    favorites: [...(state?.favorites || []), city]
+  });
+};
+
+// Update with function
+await setState(prev => ({
+  ...prev,
+  count: (prev?.count || 0) + 1
+}));
+```
+
+### Calling MCP Tools
+
+Widgets can call other tools:
+
+```tsx
+const { callTool } = useWidget();
+
+const refreshData = async () => {
+  try {
+    const result = await callTool('get-weather', {
+      city: 'Tokyo'
+    });
+    console.log('Result:', result.content);
+  } catch (error) {
+    console.error('Tool call failed:', error);
   }
+};
+```
+
+### Display Mode Control
+
+Request different display modes:
+
+```tsx
+const { displayMode, requestDisplayMode } = useWidget();
+
+const goFullscreen = async () => {
+  await requestDisplayMode('fullscreen');
+};
+
+// Current mode: 'inline' | 'pip' | 'fullscreen'
+console.log(displayMode);
+```
+
+## Custom Tools with Widgets
+
+Create tools that return widgets:
+
+```typescript
+import { MCPServer, widget, text } from 'mcp-use/server';
+import { z } from 'zod';
+
+const server = new MCPServer({
+  name: 'weather-app',
+  version: '1.0.0',
+});
+
+server.tool({
+  name: 'get-weather',
+  description: 'Get current weather for a city',
+  schema: z.object({
+    city: z.string().describe('City name')
+  }),
+  // Widget config (registration-time metadata)
+  widget: {
+    name: 'weather-display',     // Must match widget in resources/
+    invoking: 'Fetching weather...',
+    invoked: 'Weather data loaded'
+  }
+}, async ({ city }) => {
+  // Fetch data from API
+  const data = await fetchWeatherAPI(city);
+  
+  // Return widget with runtime data
+  return widget({
+    props: {
+      city,
+      temperature: data.temp,
+      conditions: data.conditions,
+      humidity: data.humidity
+    },
+    output: text(`Weather in ${city}: ${data.temp}°C`),
+    message: `Current weather for ${city}`
+  });
+});
+
+server.listen();
+```
+
+**Key Points:**
+- `widget: { name, invoking, invoked }` on tool definition
+- `widget({ props, output })` helper returns runtime data
+- `props` passed to widget, `output` shown to model
+- Widget must exist in `resources/` folder
+
+## Static Assets
+
+Use the `public/` folder for images, fonts, etc:
+
+```
+my-app/
+├── resources/
+├── public/              # Static assets
+│   ├── images/
+│   │   ├── logo.svg
+│   │   └── banner.png
+│   └── fonts/
+└── index.ts
+```
+
+**Using assets in widgets:**
+
+```tsx
+import { Image } from 'mcp-use/react';
+
+function MyWidget() {
+  return (
+    <div>
+      {/* Paths relative to public/ folder */}
+      <Image src="/images/logo.svg" alt="Logo" />
+      <img src={window.__getFile?.('images/banner.png')} alt="Banner" />
+    </div>
+  );
 }
 ```
 
-### Action Best Practices
+## Components
 
-**Schema Design:**
-- ✅ Clear, descriptive operation IDs
-- ✅ Detailed parameter descriptions
-- ✅ Include examples in descriptions
-- ✅ Specify required vs optional parameters
-- ✅ Use appropriate data types
-- ✅ Document error responses
+### McpUseProvider
 
-**API Design:**
-- ✅ RESTful conventions
-- ✅ Consistent naming
-- ✅ Proper HTTP methods (GET, POST, PUT, DELETE)
-- ✅ Pagination for list endpoints
-- ✅ Rate limiting awareness
-- ✅ Meaningful error messages
+Unified provider combining all common setup:
 
-**Testing:**
-- ✅ Test each action individually
-- ✅ Test with various input types
-- ✅ Test error scenarios
-- ✅ Verify response format
-- ✅ Check authentication flow
+```tsx
+import { McpUseProvider } from 'mcp-use/react';
 
-## Authentication
-
-### Authentication Types
-
-**1. API Key (Header)**
-```json
-{
-  "type": "api_key",
-  "api_key": {
-    "type": "bearer"
-  }
+function MyWidget() {
+  return (
+    <McpUseProvider 
+      autoSize         // Auto-resize widget
+      viewControls     // Add debug/fullscreen buttons
+      debug            // Show debug info
+    >
+      <div>Widget content</div>
+    </McpUseProvider>
+  );
 }
 ```
 
-**2. OAuth**
-```json
-{
-  "type": "oauth",
-  "oauth": {
-    "client_id": "your-client-id",
-    "authorization_url": "https://auth.example.com/oauth/authorize",
-    "token_url": "https://auth.example.com/oauth/token",
-    "scope": "read write"
-  }
+### Image Component
+
+Handles both data URLs and public paths:
+
+```tsx
+import { Image } from 'mcp-use/react';
+
+function MyWidget() {
+  return (
+    <div>
+      <Image src="/images/photo.jpg" alt="Photo" />
+      <Image src="data:image/png;base64,..." alt="Data URL" />
+    </div>
+  );
 }
 ```
 
-**3. Custom (HTTP)**
-```json
-{
-  "type": "custom",
-  "custom": {
-    "headers": {
-      "X-API-Key": "{{API_KEY}}"
-    }
-  }
+### ErrorBoundary
+
+Graceful error handling:
+
+```tsx
+import { ErrorBoundary } from 'mcp-use/react';
+
+function MyWidget() {
+  return (
+    <ErrorBoundary
+      fallback={<div>Something went wrong</div>}
+      onError={(error) => console.error(error)}
+    >
+      <MyComponent />
+    </ErrorBoundary>
+  );
 }
 ```
 
-### Security Best Practices
+## Testing
 
-- ✅ Use HTTPS endpoints only
-- ✅ Store credentials securely
-- ✅ Implement proper OAuth flows
-- ✅ Use short-lived tokens when possible
-- ✅ Rotate API keys regularly
-- ✅ Validate all inputs on server side
-- ❌ Don't expose API keys in schema
-- ❌ Don't include secrets in knowledge files
-- ❌ Don't bypass authentication checks
+### Using the Inspector
 
-## Response Formatting
+1. **Start development server:**
+   ```bash
+   yarn dev
+   ```
 
-### Structured Responses
+2. **Open Inspector:**
+   - Navigate to `http://localhost:3000/inspector`
+   
+3. **Test widgets:**
+   - Click Tools tab
+   - Find your widget tool
+   - Enter test parameters
+   - Execute to see widget render
 
-ChatGPT handles various response formats:
+4. **Debug interactions:**
+   - Use browser console
+   - Check RPC logs
+   - Test state persistence
+   - Verify tool calls
 
-**JSON (Recommended):**
-```json
-{
-  "status": "success",
-  "data": {
-    "items": [...],
-    "total": 42
-  },
-  "metadata": {
-    "page": 1,
-    "per_page": 10
-  }
+### Testing in ChatGPT
+
+1. **Enable Developer Mode:**
+   - Settings → Connectors → Advanced → Developer mode
+
+2. **Add your server:**
+   - Go to Connectors tab
+   - Add remote MCP server URL
+
+3. **Test in conversation:**
+   - Select Developer Mode from Plus menu
+   - Choose your connector
+   - Ask ChatGPT to use your tools
+
+**Prompting tips:**
+- Be explicit: "Use the weather-app connector's get-weather tool..."
+- Disallow alternatives: "Do not use built-in tools, only use my connector"
+- Specify input: "Call get-weather with { city: 'Tokyo' }"
+
+## Best Practices
+
+### Schema Design
+
+Use descriptive schemas:
+
+```typescript
+// ✅ Good
+const schema = z.object({
+  city: z.string().describe('City name (e.g., Tokyo, Paris)'),
+  temperature: z.number().min(-50).max(60).describe('Temp in Celsius'),
+});
+
+// ❌ Bad
+const schema = z.object({
+  city: z.string(),
+  temp: z.number(),
+});
+```
+
+### Theme Support
+
+Always support both themes:
+
+```tsx
+const { theme } = useWidget();
+
+const bgColor = theme === 'dark' ? 'bg-gray-900' : 'bg-white';
+const textColor = theme === 'dark' ? 'text-white' : 'text-gray-900';
+```
+
+### Loading States
+
+Always check `isPending` first:
+
+```tsx
+const { props, isPending } = useWidget<MyProps>();
+
+if (isPending) {
+  return <LoadingSpinner />;
 }
+
+// Now safe to access props.field
+return <div>{props.field}</div>;
 ```
 
-**Plain Text:**
-```
-Result: Success
-Details: Operation completed
-Items found: 42
-```
+### Widget Focus
 
-**Markdown:**
-```markdown
-# Results
+Keep widgets focused:
 
-Found **42 items**:
-- Item 1
-- Item 2
-- Item 3
+```typescript
+// ✅ Good: Single purpose
+export const widgetMetadata: WidgetMetadata = {
+  description: 'Display weather for a city',
+  props: z.object({ city: z.string() }),
+};
+
+// ❌ Bad: Too many responsibilities
+export const widgetMetadata: WidgetMetadata = {
+  description: 'Weather, forecast, map, news, and more',
+  props: z.object({ /* many fields */ }),
+};
 ```
 
 ### Error Handling
 
-Provide helpful error messages:
+Handle errors gracefully:
 
-```json
-{
-  "error": {
-    "code": "INVALID_INPUT",
-    "message": "The 'email' parameter must be a valid email address",
-    "details": {
-      "field": "email",
-      "provided": "invalid-email"
+```tsx
+const { callTool } = useWidget();
+
+const fetchData = async () => {
+  try {
+    const result = await callTool('fetch-data', { id: '123' });
+    if (result.isError) {
+      console.error('Tool returned error');
     }
+  } catch (error) {
+    console.error('Tool call failed:', error);
   }
-}
+};
 ```
 
-**Error Response Best Practices:**
-- ✅ Clear error messages
-- ✅ Actionable guidance
-- ✅ Specific error codes
-- ✅ Context about what went wrong
-- ✅ Suggestions for fixing
+## Configuration
 
-## Testing Your GPT
+### Production Setup
 
-### Manual Testing Checklist
+Set base URL for production:
 
-**Functionality:**
-- [ ] All actions work as expected
-- [ ] Error cases are handled gracefully
-- [ ] Authentication works correctly
-- [ ] Response format is consistent
-- [ ] Edge cases are handled
+```typescript
+const server = new MCPServer({
+  name: 'my-app',
+  version: '1.0.0',
+  baseUrl: process.env.MCP_URL || 'https://myserver.com'
+});
+```
 
-**User Experience:**
-- [ ] Instructions are clear
-- [ ] Conversation starters work
-- [ ] Responses are helpful
-- [ ] Tone is appropriate
-- [ ] Knowledge files are referenced correctly
+### Environment Variables
 
-**Performance:**
-- [ ] Actions respond quickly (< 5s)
-- [ ] No rate limiting issues
-- [ ] Large responses are handled
-- [ ] Timeouts are managed
+```env
+# Server URL
+MCP_URL=https://myserver.com
 
-### Test Scenarios
+# For static deployments
+MCP_SERVER_URL=https://myserver.com/api
+CSP_URLS=https://cdn.example.com,https://api.example.com
+```
 
-Create test cases for common scenarios:
+**Variable usage:**
+- `MCP_URL`: Base URL for widget assets and CSP
+- `MCP_SERVER_URL`: MCP server URL for tool calls (static deployments)
+- `CSP_URLS`: Additional domains for Content Security Policy
 
-1. **Happy path**: Normal, expected usage
-2. **Missing parameters**: Required fields not provided
-3. **Invalid input**: Wrong data types or formats
-4. **Authentication failures**: Invalid or expired tokens
-5. **Rate limits**: Too many requests
-6. **Server errors**: 500 responses
-7. **Network issues**: Timeouts, connection failures
+## Deployment
 
-## Publishing Your GPT
+### Deploy to mcp-use Cloud
 
-### Visibility Options
+```bash
+# Login
+npx mcp-use login
 
-**Private:**
-- Only you can access
-- Good for testing
-- No approval needed
+# Deploy
+yarn deploy
+```
 
-**Anyone with link:**
-- Shareable URL
-- Not listed publicly
-- Good for team/client sharing
+### Build for Production
 
-**Public:**
-- Listed in GPT store
-- Searchable by anyone
-- Requires review and approval
+```bash
+# Build
+yarn build
 
-### GPT Store Guidelines
+# Start
+yarn start
+```
 
-If publishing publicly:
-
-**Requirements:**
-- ✅ Useful and functional
-- ✅ Clear description
-- ✅ Appropriate name
-- ✅ Working actions (if any)
-- ✅ Follows OpenAI policies
-- ❌ No spam or low-effort GPTs
-- ❌ No policy violations
-- ❌ No misleading descriptions
-
-**Optimization:**
-- Unique value proposition
-- Professional icon/image
-- Well-written instructions
-- Tested thoroughly
-- Good conversation starters
-- Regular updates
+Build process:
+- Compiles TypeScript
+- Bundles React widgets
+- Optimizes assets
+- Generates production HTML
 
 ## Common Patterns
 
-### Pattern 1: API Wrapper GPT
+### Data Fetching Widget
 
-Create a GPT that wraps an existing API:
-
-**Instructions:**
-```markdown
-You are an expert assistant for [Service Name] API. You help users:
-- Search and retrieve data
-- Format API responses clearly
-- Explain API capabilities
-- Troubleshoot common issues
-
-When responding:
-1. Use the appropriate action
-2. Format results in a readable way
-3. Explain what was found
-4. Offer next steps or related queries
+```tsx
+const DataWidget: React.FC = () => {
+  const { props, isPending, callTool } = useWidget();
+  
+  if (isPending) {
+    return <div>Loading...</div>;
+  }
+  
+  const refresh = async () => {
+    await callTool('fetch-data', { id: props.id });
+  };
+  
+  return (
+    <div>
+      <h1>{props.title}</h1>
+      <button onClick={refresh}>Refresh</button>
+    </div>
+  );
+};
 ```
 
-**Actions:**
-- Search/query endpoints
-- Retrieve specific items
-- Create/update operations (if applicable)
+### Stateful Widget
 
-### Pattern 2: Data Analysis GPT
-
-Analyze data using custom actions:
-
-**Instructions:**
-```markdown
-You are a data analysis assistant. You:
-- Fetch data from APIs
-- Analyze trends and patterns
-- Create visualizations (descriptions)
-- Provide insights and recommendations
-
-Always:
-- Explain your methodology
-- Show your work
-- Cite data sources
-- Acknowledge limitations
+```tsx
+const CounterWidget: React.FC = () => {
+  const { state, setState } = useWidget();
+  
+  const increment = async () => {
+    await setState({ 
+      count: (state?.count || 0) + 1 
+    });
+  };
+  
+  return (
+    <div>
+      <p>Count: {state?.count || 0}</p>
+      <button onClick={increment}>+1</button>
+    </div>
+  );
+};
 ```
 
-**Actions:**
-- Fetch datasets
-- Run aggregations
-- Export results
+### Themed Widget
 
-### Pattern 3: Workflow Automation GPT
-
-Orchestrate multiple API calls:
-
-**Instructions:**
-```markdown
-You automate workflows by:
-1. Understanding user goals
-2. Breaking down into steps
-3. Executing API calls in sequence
-4. Handling errors gracefully
-5. Reporting results clearly
-
-Confirm before executing destructive operations.
+```tsx
+const ThemedWidget: React.FC = () => {
+  const { theme } = useWidget();
+  
+  return (
+    <div className={theme === 'dark' ? 'dark-theme' : 'light-theme'}>
+      Content
+    </div>
+  );
+};
 ```
 
-**Actions:**
-- Multiple CRUD operations
-- Status checks
-- Batch operations
+## Troubleshooting
 
-## Debugging Common Issues
+### Widget Not Appearing
 
-### Action Not Working
-
-**Check:**
-1. OpenAPI schema is valid (use validator)
-2. Authentication is configured correctly
-3. Server URL is correct and accessible
-4. Parameter names match exactly
-5. Response format matches schema
-6. No CORS issues (for browser-based APIs)
-
-**Debug steps:**
-1. Test endpoint in Postman/curl
-2. Check action logs in GPT settings
-3. Verify schema against working example
-4. Test with minimal parameters
-5. Check server logs
-
-### Authentication Failing
-
-**Common causes:**
-- Incorrect credential format
-- Expired tokens
-- Wrong authentication type
-- Missing required headers
-- CORS configuration
+**Problem:** Widget file exists but tool doesn't appear
 
 **Solutions:**
-- Re-enter credentials
-- Generate new API key
-- Verify OAuth flow
-- Check server logs
-- Test authentication separately
+- Ensure `.tsx` extension
+- Export `widgetMetadata` object
+- Export default React component
+- Check server logs for errors
+- Verify widget name matches file/folder name
 
-### Poor Response Quality
+### Props Not Received
 
-**Improve with:**
-- More detailed instructions
-- Better examples in descriptions
-- Clearer parameter descriptions
-- Response format specifications
-- Additional context in knowledge files
+**Problem:** Component receives empty props
 
-## Advanced Topics
+**Solutions:**
+- Check `isPending` first (props empty while pending)
+- Use `useWidget()` hook (not React props)
+- Verify `widgetMetadata.props` is valid Zod schema
+- Check tool parameters match schema
 
-### Function Calling vs Actions
+### CSP Errors
 
-**Function Calling** (via API):
-- Programmatic GPT usage
-- Full control over conversation
-- Use in applications
-- Can chain multiple calls
+**Problem:** Widget loads but assets fail
 
-**Actions** (in Custom GPTs):
-- User-facing GPTs
-- Conversational interface
-- No code required
-- Limited to GPT platform
-
-### Rate Limiting
-
-Handle rate limits gracefully:
-
-**In your API:**
-```json
-{
-  "error": "Rate limit exceeded",
-  "retry_after": 60,
-  "limit": 100,
-  "remaining": 0
-}
-```
-
-**In GPT instructions:**
-```markdown
-If you encounter rate limits:
-1. Inform the user
-2. Suggest waiting
-3. Offer alternative approaches
-4. Don't retry immediately
-```
-
-### Webhooks and Async Operations
-
-For long-running operations:
-
-1. Return operation ID immediately
-2. Provide status check endpoint
-3. Offer polling mechanism
-4. Consider webhook callbacks (if supported)
+**Solutions:**
+- Set `baseUrl` in server config
+- Add domains to CSP via `appsSdkMetadata`
+- Use HTTPS for all resources
+- Check browser console for CSP violations
 
 ## Learn More
 
-- **ChatGPT**: [chat.openai.com](https://chat.openai.com)
-- **GPT Actions Guide**: [platform.openai.com/docs/actions](https://platform.openai.com/docs/actions)
-- **OpenAPI Spec**: [spec.openapis.org](https://spec.openapis.org/oas/latest.html)
-- **Function Calling**: [platform.openai.com/docs/guides/function-calling](https://platform.openai.com/docs/guides/function-calling)
+- **Documentation**: https://docs.mcp-use.com
+- **Widget Guide**: https://docs.mcp-use.com/typescript/server/ui-widgets
+- **Apps SDK Tutorial**: https://docs.mcp-use.com/typescript/server/creating-apps-sdk-server
+- **ChatGPT Apps Flow**: https://docs.mcp-use.com/guides/chatgpt-apps-flow
+- **Inspector Debugging**: https://docs.mcp-use.com/inspector/debugging-chatgpt-apps
+- **GitHub**: https://github.com/mcp-use/mcp-use
 
 ## Quick Reference
 
-**GPT Configuration:**
-- Name: 3-5 words, clear function
-- Description: 1-2 sentences
-- Instructions: Detailed, with examples
-- Starters: 4 example prompts
+**Commands:**
+- `npx create-mcp-use-app my-app --template apps-sdk` - Bootstrap
+- `yarn dev` - Development with hot reload
+- `yarn build` - Build for production
+- `yarn start` - Run production server
+- `yarn deploy` - Deploy to mcp-use Cloud
 
-**Actions:**
-- OpenAPI 3.0+ schema
-- Clear operationId and descriptions
-- Proper parameter types
-- Authentication configured
-- Tested thoroughly
+**Widget structure:**
+- `resources/widget-name.tsx` - Single file widget
+- `resources/widget-name/widget.tsx` - Folder-based widget entry
+- `public/` - Static assets
 
-**Best Practices:**
-- Test extensively
-- Handle errors gracefully
-- Provide clear responses
-- Secure authentication
-- Follow OpenAI policies
+**Widget metadata:**
+- `description` - Widget description
+- `props` - Zod schema for input
+- `exposeAsTool` - Auto-register as tool (default: true)
+- `appsSdkMetadata` - Apps SDK configuration
+
+**useWidget hook:**
+- `props` - Widget input parameters
+- `isPending` - Loading state flag
+- `state, setState` - Persistent state
+- `callTool` - Call other tools
+- `theme` - Current theme (light/dark)
+- `displayMode, requestDisplayMode` - Display control
