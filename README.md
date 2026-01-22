@@ -38,13 +38,13 @@ Register this repository as a marketplace:
 Then install skills:
 
 ```bash
-/plugin install mcp-builder@mcp-use-skills
+/plugin install mcp-builder@mcp-use
 ```
 
 Or browse and install via the UI:
 1. Run `/plugin marketplace add mcp-use/skills`
 2. Select `Browse and install plugins`
-3. Select `mcp-use-skills`
+3. Select `mcp-use`
 4. Choose a skill to install
 5. Select `Install now`
 
