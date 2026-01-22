@@ -25,6 +25,19 @@ Build production-ready MCP servers with the mcp-use framework. This skill provid
 
 **Use when**: Creating MCP servers, defining tools/resources/prompts, deploying MCP servers, or working with the mcp-use framework.
 
+### chatgpt-app-builder
+
+Build custom ChatGPT apps and GPTs with actions and best practices. This skill provides:
+- GPT configuration and instructions
+- OpenAPI schema design for actions
+- Authentication setup (API Key, OAuth, Custom)
+- Function calling patterns
+- Response formatting and error handling
+- Testing and deployment guidance
+- Common patterns and examples
+
+**Use when**: Creating ChatGPT apps, building custom GPTs, defining GPT actions, integrating APIs with ChatGPT, or working with OpenAI function calling.
+
 ## Installation
 
 ### Claude Code
@@ -38,7 +51,12 @@ Register this repository as a marketplace:
 Then install skills:
 
 ```bash
+# Install all skills
+/plugin install all-skills@mcp-use
+
+# Or install individual skills
 /plugin install mcp-builder@mcp-use
+/plugin install chatgpt-app-builder@mcp-use
 ```
 
 Or browse and install via the UI:
@@ -122,7 +140,6 @@ Skills follow the [Agent Skills specification](https://agentskills.io). When con
 
 ## Upcoming Skills
 
-- **chatgpt-app-builder**: Build ChatGPT apps with best practices
 - More skills coming soon!
 
 ## Learn More
