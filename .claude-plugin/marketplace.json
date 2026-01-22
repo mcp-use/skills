@@ -1,0 +1,22 @@
+{
+  "name": "mcp-use-skills",
+  "owner": {
+    "name": "mcp-use",
+    "email": "team@mcp-use.com"
+  },
+  "metadata": {
+    "description": "Official skills for mcp-use framework - build production-ready MCP servers",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "mcp-builder",
+      "description": "Build Model Context Protocol (MCP) servers with mcp-use framework. Includes quick start, tools, resources, prompts, testing, and deployment guidance.",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/mcp-builder"
+      ]
+    }
+  ]
+}
