@@ -17,15 +17,54 @@ cd my-mcp-server
 ```
 
 **Choose template based on needs:**
-- `--template starter` - Basic MCP server with simple tools and resources
-- `--template apps-sdk` - MCP server with OpenAI Apps SDK widgets (recommended for interactive UIs)
-- `--template mcp-ui` - MCP server with MCP-UI framework support
+- `--template starter` - Full-featured with all MCP primitives (tools, resources, prompts) + example widgets
+- `--template mcp-apps` - Optimized for ChatGPT widgets with product search example
+- `--template blank` - Minimal starting point for custom implementation
 
 ```bash
-npx create-mcp-use-app my-server --template apps-sdk
+# Example: MCP Apps template
+npx create-mcp-use-app my-server --template mcp-apps
 cd my-server
 yarn install
 ```
+
+**Template Details:**
+- **starter**: Best for learning - includes all MCP features plus widgets
+- **mcp-apps**: Best for ChatGPT apps - includes product carousel/accordion example
+- **blank**: Best for experts - minimal boilerplate
+
+## MCP Apps Structure
+
+### Automatic Widget Registration
+
+The mcp-apps and starter templates automatically discover and register React widgets from the `resources/` folder:
+
+**Single-file widget pattern:**
+```
+resources/
+└── weather-display.tsx  # Widget name becomes "weather-display"
+```
+
+**Folder-based widget pattern:**
+```
+resources/
+└── product-search/      # Widget name becomes "product-search"
+    ├── widget.tsx       # Entry point (required name!)
+    ├── components/      # Sub-components
+    ├── hooks/           # Custom hooks
+    ├── types.ts
+    └── constants.ts
+```
+
+**What happens automatically:**
+1. Server scans `resources/` folder at startup
+2. Finds `.tsx` files or `widget.tsx` in folders
+3. Extracts `widgetMetadata` from each component
+4. Registers as MCP Tool (e.g., `weather-display`)
+5. Registers as MCP Resource (e.g., `ui://widget/weather-display.html`)
+6. Builds widget bundles with Vite
+
+**No manual registration needed!** Just export `widgetMetadata` and a default component.
 
 ## Defining Tools
 
@@ -120,6 +159,34 @@ server.resource(
 - `markdown(string)` - Markdown content
 - `html(string)` - HTML content
 - `image(buffer, mimeType)` - Binary images
+- `audio(buffer, mimeType)` - Audio files
+- `binary(buffer, mimeType)` - Binary data
+- `mix(...contents)` - Combine multiple content types
+
+**Advanced response examples:**
+
+```typescript
+// Audio response
+import { audio } from 'mcp-use/server';
+
+// From base64 data
+return audio(base64Data, "audio/wav");
+
+// From file path (async)
+return await audio("/path/to/audio.mp3");
+
+// Binary data (PDFs, etc.)
+import { binary } from 'mcp-use/server';
+return binary(pdfBuffer, "application/pdf");
+
+// Mix multiple content types
+import { mix, text, object, resource } from 'mcp-use/server';
+return mix(
+  text("Analysis complete:"),
+  object({ score: 95, status: "pass" }),
+  resource("report://analysis-123", text("Full report..."))
+);
+```
 
 ## Defining Prompts
 
@@ -246,31 +313,141 @@ yarn deploy
 - ✅ Version your server semantically
 - ✅ Document breaking changes
 
-## Widget Support (Apps SDK Template)
+## Widget Support
 
-If using apps-sdk template, widgets auto-register:
+### Automatic Widget Registration
 
-```typescript
-// resources/weather-widget.tsx
-export const widgetMetadata = {
+When using the `mcp-apps` or `starter` template, widgets in the `resources/` folder are automatically registered:
+
+```tsx
+// resources/weather-display.tsx
+import { useWidget, McpUseProvider, type WidgetMetadata } from 'mcp-use/react';
+import { z } from 'zod';
+
+const propSchema = z.object({
+  city: z.string(),
+  temperature: z.number()
+});
+
+// Required: Export widget metadata
+export const widgetMetadata: WidgetMetadata = {
   description: "Display weather information",
-  schema: z.object({
-    city: z.string(),
-    temperature: z.number()
-  })
+  props: propSchema, // Use 'props', not 'schema'!
 };
 
-export default function WeatherWidget({ city, temperature }) {
+// Required: Export default component
+export default function WeatherDisplay() {
+  const { props, isPending } = useWidget<z.infer<typeof propSchema>>();
+  
+  // Always handle loading state
+  if (isPending) return <div>Loading...</div>;
+  
   return (
-    <div>
-      <h2>{city}</h2>
-      <p>{temperature}°C</p>
-    </div>
+    <McpUseProvider autoSize>
+      <div>
+        <h2>{props.city}</h2>
+        <p>{props.temperature}°C</p>
+      </div>
+    </McpUseProvider>
   );
 }
 ```
 
-Widget automatically becomes available as tool and resource!
+**Widget automatically becomes available as:**
+- MCP Tool: `weather-display`
+- MCP Resource: `ui://widget/weather-display.html`
+
+### Content Security Policy (CSP)
+
+Control what external resources widgets can access:
+
+```typescript
+export const widgetMetadata: WidgetMetadata = {
+  description: "Weather widget",
+  props: z.object({ city: z.string() }),
+  metadata: {
+    csp: {
+      // APIs to call
+      connectDomains: ["https://api.weather.com"],
+      // Static assets to load
+      resourceDomains: ["https://cdn.weather.com"],
+      // Iframes to embed
+      frameDomains: ["https://embed.weather.com"],
+      // Script directives
+      scriptDirectives: ["'unsafe-inline'"],
+    },
+  },
+};
+```
+
+Alternatively, set at server level:
+
+```typescript
+server.uiResource({
+  type: "mcpApps",
+  name: "my-widget",
+  htmlTemplate: `...`,
+  metadata: {
+    csp: {
+      connectDomains: ["https://api.example.com"],
+      resourceDomains: ["https://cdn.example.com"],
+    },
+  },
+});
+```
+
+## Dual-Protocol Widget Support
+
+mcp-use supports the **MCP Apps standard** (SEP-1865) with automatic dual-protocol support:
+
+```typescript
+import { MCPServer } from 'mcp-use/server';
+
+const server = new MCPServer({
+  name: 'my-server',
+  version: '1.0.0',
+  baseUrl: process.env.MCP_URL || 'http://localhost:3000', // Required for widgets
+});
+
+// Register a dual-protocol widget
+server.uiResource({
+  type: "mcpApps", // Works with BOTH MCP Apps clients AND ChatGPT
+  name: "weather-display",
+  htmlTemplate: `<!DOCTYPE html>...`,
+  metadata: {
+    csp: { connectDomains: ["https://api.weather.com"] },
+    prefersBorder: true,
+    autoResize: true,
+  },
+});
+```
+
+**What happens automatically:**
+- **MCP Apps clients** (Claude, Goose) receive: `text/html;profile=mcp-app` with `_meta.ui.*`
+- **ChatGPT** receives: `text/html+skybridge` with `_meta.openai/*`
+- Same widget code works everywhere!
+
+### Custom OpenAI Metadata
+
+Need ChatGPT-specific features? Combine both metadata fields:
+
+```typescript
+server.uiResource({
+  type: "mcpApps",
+  name: "my-widget",
+  htmlTemplate: `...`,
+  // Unified metadata (dual-protocol)
+  metadata: {
+    csp: { connectDomains: ["https://api.example.com"] },
+    prefersBorder: true,
+  },
+  // ChatGPT-specific overrides
+  appsSdkMetadata: {
+    "openai/widgetDescription": "ChatGPT-specific description",
+    "openai/customFeature": "some-value", // Any custom OpenAI metadata
+  },
+});
+```
 
 ## Project Structure
 
@@ -287,8 +464,17 @@ my-mcp-server/
 
 ## Common Patterns
 
-**Tool with widget:**
+**Tool with dual-protocol widget:**
 ```typescript
+import { MCPServer, widget, text } from 'mcp-use/server';
+import { z } from 'zod';
+
+const server = new MCPServer({
+  name: 'my-server',
+  version: '1.0.0',
+  baseUrl: process.env.MCP_URL || 'http://localhost:3000',
+});
+
 server.tool(
   {
     name: "show-data",
@@ -297,7 +483,7 @@ server.tool(
       query: z.string()
     }),
     widget: {
-      name: "data-display",
+      name: "data-display", // Must exist in resources/
       invoking: "Loading...",
       invoked: "Data loaded"
     }
@@ -358,6 +544,9 @@ For comprehensive examples and advanced patterns, connect to the **mcp-use MCP s
 ## Learn More
 
 - **Documentation**: https://docs.mcp-use.com
+- **MCP Apps Standard**: https://docs.mcp-use.com/typescript/server/mcp-apps (dual-protocol guide)
+- **Templates**: https://docs.mcp-use.com/typescript/server/templates (template comparison)
+- **Widget Guide**: https://docs.mcp-use.com/typescript/server/ui-widgets
 - **Examples**: https://github.com/mcp-use/mcp-use/tree/main/examples
 - **Tunneling Guide**: https://mcp-use.com/docs/tunneling
 - **Discord**: https://mcp-use.com/discord
@@ -375,11 +564,27 @@ For comprehensive examples and advanced patterns, connect to the **mcp-use MCP s
 - `yarn deploy` - Deploy to cloud
 
 **Response helpers:**
-- `text(str)`, `object(data)`, `markdown(str)`, `html(str)`, `image(buf, mime)`
+- `text(str)`, `object(data)`, `markdown(str)`, `html(str)`
+- `image(buf, mime)`, `audio(buf, mime)`, `binary(buf, mime)`
+- `mix(...)` - Combine multiple content types
+- `widget({ props, output })` - Return widget with data
 
 **Server methods:**
 - `server.tool()` - Define executable tool
 - `server.resource()` - Define static/dynamic resource
 - `server.resourceTemplate()` - Define parameterized resource
 - `server.prompt()` - Define prompt template
+- `server.uiResource()` - Define widget resource
 - `server.listen()` - Start server
+
+**Widget metadata fields:**
+- `description` - Widget description
+- `props` - Zod schema for widget props
+- `metadata` - Unified config (dual-protocol)
+- `metadata.csp` - Content Security Policy
+- `appsSdkMetadata` - ChatGPT-specific overrides
+
+**Available templates:**
+- `starter` - Full-featured (tools, resources, prompts, widgets)
+- `mcp-apps` - ChatGPT-optimized with product example
+- `blank` - Minimal boilerplate
