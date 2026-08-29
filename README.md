@@ -38,6 +38,17 @@ Build custom ChatGPT apps and GPTs with actions and best practices. This skill p
 
 **Use when**: Creating ChatGPT apps, building custom GPTs, defining GPT actions, integrating APIs with ChatGPT, or working with OpenAI function calling.
 
+### hol-guard
+
+Protect supported local AI coding harnesses with HOL Guard before mutation-bearing work. This skill provides:
+- Stable HOL Guard installation
+- Runtime harness detection
+- Bootstrap, protected dry-run, and doctor verification
+- Fail-closed launch guidance
+- Guard approvals, receipts, and status evidence
+
+**Use when**: Running local coding agents that can execute tools, shell commands, or file mutations and you want HOL Guard protection enabled first.
+
 ## Installation
 
 ### Claude Code
@@ -57,6 +68,7 @@ Then install skills:
 # Or install individual skills
 /plugin install mcp-builder@mcp-use
 /plugin install chatgpt-app-builder@mcp-use
+/plugin install hol-guard@mcp-use
 ```
 
 Or browse and install via the UI:
